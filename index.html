@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b13">
+  <title>Quantum Control</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b13;
+      --text: #edf4ff;
+      --muted: #91a0b6;
+      --line: rgba(190, 215, 255, .13);
+      --glass: rgba(18, 28, 46, .56);
+      --glass-strong: rgba(18, 30, 50, .78);
+      --cyan: #62e5ff;
+      --blue: #6387ff;
+      --violet: #a582ff;
+      --green: #63e5ae;
+      --red: #ff697c;
+      --amber: #ffd27b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding-bottom: 12px;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 12% 4%, rgba(49, 107, 185, .22), transparent 38%),
+        radial-gradient(ellipse at 90% 22%, rgba(103, 68, 187, .19), transparent 35%),
+        radial-gradient(ellipse at 45% 100%, rgba(24, 142, 160, .12), transparent 40%),
+        var(--bg);
+      font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    body::before {
+      position: fixed;
+      z-index: -1;
+      inset: -20%;
+      content: "";
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 22% 26%, rgba(31, 180, 255, .09), transparent 22%),
+        radial-gradient(circle at 75% 36%, rgba(151, 86, 255, .09), transparent 24%),
+        radial-gradient(circle at 48% 82%, rgba(43, 225, 210, .06), transparent 24%);
+      filter: blur(36px);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button,
+    button * {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-drag: none;
+    }
+
+    button {
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    summary:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .topbar {
+      width: min(100%, 1440px);
+      min-height: 76px;
+      margin: auto;
+      padding: calc(13px + env(safe-area-inset-top, 0px)) 15px 12px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(128, 211, 255, .27);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(45, 95, 154, .42), rgba(64, 49, 119, .32));
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, .19),
+        0 8px 28px rgba(25, 120, 255, .17);
+    }
+
+    .brand-mark svg {
+      width: 38px;
+      height: 38px;
+      filter: drop-shadow(0 0 7px rgba(56, 184, 255, .52));
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-copy h1 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+      letter-spacing: -.025em;
+    }
+
+    .brand-copy small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .connection::before {
+      width: 7px;
+      height: 7px;
+      content: "";
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .connection.online {
+      color: var(--green);
+      background: rgba(40, 160, 111, .1);
+    }
+
+    .connection.offline {
+      color: #ff8591;
+      background: rgba(207, 61, 87, .1);
+    }
+
+    .quick-telemetry { display:flex; align-items:center; gap:7px; min-width:0; }
+    .quick-chip { padding:6px 9px; border:1px solid var(--line); border-radius:12px; background:rgba(8,15,27,.56); color:var(--muted); font-size:10px; white-space:nowrap; }
+    .quick-chip b { color:var(--text); font-weight:700; }
+    .servo-controls { display:grid; gap:12px; }
+    .servo-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px; border:1px solid var(--line); border-radius:16px; background:rgba(7,13,24,.35); }
+    .servo-value { min-width:64px; color:var(--cyan); font-size:20px; font-weight:800; text-align:center; }
+    .servo-buttons { display:flex; gap:8px; }
+    .servo-buttons .btn { min-width:64px; min-height:48px; font-size:17px; font-weight:800; }
+    .claw-buttons .btn { min-width:108px; min-height:54px; }
+    .status-content { display:grid; gap:10px; }
+    .status-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .status-section-head h3 { margin:0; }
+    .status-section-head .btn { width:auto; min-width:76px; min-height:38px; padding:6px 18px; }
+    .status-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .status-item { padding:10px 12px; border:1px solid var(--line); border-radius:13px; background:rgba(7,13,24,.4); }
+    .status-item small { display:block; color:var(--muted); font-size:10px; }
+    .status-item b { display:block; margin-top:3px; font-size:12px; overflow-wrap:anywhere; }
+    .ready { color:var(--green); } .not-ready { color:var(--red); }
+
+    .small-note {
+      margin: -4px 0 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .icon-button {
+      width: 43px;
+      height: 43px;
+      flex: 0 0 43px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.025));
+      box-shadow: inset 0 1px 1px rgba(255,255,255,.08);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    .icon-button:hover {
+      border-color: rgba(98, 229, 255, .42);
+      background: rgba(78, 131, 190, .18);
+    }
+
+    .icon-button:active {
+      transform: scale(.91);
+    }
+
+    .icon-button svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    main {
+      width: min(100%, 1440px);
+      margin: auto;
+      padding: 0 13px;
+      display: grid;
+      gap: 11px;
+    }
+
+    .control-grid {
+      display: grid;
+      gap: 11px;
+    }
+
+    @media (orientation: landscape) and (min-width: 720px) {
+      body { padding-bottom: 16px; }
+      .topbar { min-height: 64px; padding-top: 8px; padding-bottom: 8px; }
+      .control-grid { grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); }
+      .pad { width: min(100%, 640px); }
+      .pad button { min-height: clamp(82px, 16vh, 150px) !important; }
+      .topbar { gap:8px; }
+      .quick-telemetry { gap:5px; }
+      .quick-chip { padding:5px 7px; }
+    }
+
+    .rotate-prompt {
+      display: none;
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      padding: 24px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: var(--bg);
+    }
+
+    .rotate-prompt > div { max-width: 360px; }
+    .rotate-icon { color: var(--cyan); font-size: 56px; line-height: 1; }
+    .rotate-prompt h2 { margin: 18px 0 8px; }
+    .rotate-prompt p { color: var(--muted); font-size: 14px; }
+
+    @media (orientation: portrait) and (max-width: 719px) {
+      .rotate-prompt { display: flex; }
+    }
+
+    @media (max-width: 720px) { .quick-chip:nth-child(2) { display:none; } }
+
+    .glass-card {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      padding: 15px;
+      border: 1px solid rgba(190, 215, 255, .15);
+      border-radius: 22px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.085), rgba(255,255,255,.018) 45%),
+        var(--glass);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.13),
+        inset 0 -1px 0 rgba(255,255,255,.025),
+        0 18px 44px rgba(0,0,0,.22);
+    }
+
+    .glass-card::before {
+      position: absolute;
+      top: 0;
+      left: 12%;
+      width: 56%;
+      height: 1px;
+      content: "";
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+      pointer-events: none;
+    }
+
+    .card-title {
+      position: relative;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 14px;
+      font-weight: 720;
+    }
+
+    .card-title svg,
+    summary svg {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 19px;
+      color: var(--cyan);
+      filter: drop-shadow(0 0 7px rgba(98,229,255,.32));
+    }
+
+    .motion-state {
+      min-height: 27px;
+      margin: 0 auto 7px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .motion-state span {
+      padding: 5px 11px;
+      border: 1px solid rgba(190,215,255,.14);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(3, 8, 16, .34);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .055em;
+      transition: color .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .motion-state.moving span {
+      color: var(--cyan);
+      border-color: rgba(98,229,255,.35);
+      background: rgba(45, 148, 190, .13);
+    }
+
+    .pad {
+      width: min(100%, 400px);
+      margin: 8px auto 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .pad button {
+      min-height: 63px;
+      padding: 6px 3px;
+      border: 1px solid rgba(190,215,255,.15);
+      border-radius: 17px;
+      color: var(--text);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.085), rgba(255,255,255,.018)),
+        rgba(13, 22, 36, .68);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.12),
+        0 8px 20px rgba(0,0,0,.13);
+      font-size: 10px;
+      font-weight: 750;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      transition:
+        transform .14s cubic-bezier(.2,.8,.2,1),
+        border-color .14s ease,
+        background .14s ease,
+        box-shadow .14s ease;
+    }
+
+    .pad button i {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--cyan);
+      font-size: 27px;
+      font-style: normal;
+      line-height: 1;
+      filter: drop-shadow(0 0 6px rgba(98,229,255,.35));
+    }
+
+    .pad button:active,
+    .pad button.pressed {
+      transform: scale(.92);
+      border-color: rgba(98,229,255,.65);
+      background: linear-gradient(145deg, rgba(49,149,190,.3), rgba(51,71,145,.23));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 0 0 3px rgba(98,229,255,.1),
+        0 10px 30px rgba(26,166,220,.16);
+    }
+
+    .pad button.stop-button {
+      border-color: rgba(255,105,124,.34);
+      color: #ffb0b9;
+      background:
+        linear-gradient(145deg, rgba(255,120,140,.12), rgba(255,255,255,.018)),
+        rgba(37, 17, 29, .68);
+    }
+
+    .pad button.stop-button i {
+      color: var(--red);
+      filter: drop-shadow(0 0 7px rgba(255,105,124,.4));
+    }
+
+    .slider-block {
+      margin: 11px 0 2px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .slider-label output {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .number-input {
+      width: 76px;
+      min-height: 32px;
+      padding: 4px 7px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--text);
+      background: rgba(4, 10, 19, .55);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .number-input::-webkit-inner-spin-button,
+    .number-input::-webkit-outer-spin-button {
+      margin: 0;
+      -webkit-appearance: none;
+    }
+
+    .number-input.wide {
+      width: 112px;
+      text-align: left;
+    }
+
+    .speed-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 34px;
+      margin: 4px 0 0;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    input[type="url"] {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      background: rgba(4, 10, 19, .55);
+    }
+
+    .button-row,
+    .metric-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn {
+      min-height: 43px;
+      padding: 9px 12px;
+      border: 1px solid rgba(190,215,255,.15);
+      border-radius: 14px;
+      color: var(--text);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.018)),
+        rgba(13,22,36,.65);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+      font-weight: 650;
+      transition: transform .14s ease, filter .14s ease, border-color .14s ease;
+    }
+
+    .btn:hover {
+      border-color: rgba(98,229,255,.36);
+    }
+
+    .btn:active {
+      transform: scale(.96);
+      filter: brightness(1.2);
+    }
+
+    .btn.primary {
+      border-color: rgba(98,229,255,.45);
+      color: #05131a;
+      background: linear-gradient(135deg, #76efff, #7ea9ff);
+      box-shadow: 0 7px 24px rgba(69,174,255,.2);
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid rgba(190,215,255,.12);
+      border-radius: 15px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.012)),
+        rgba(4, 10, 19, .34);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .metric-value {
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    details.glass-card {
+      padding: 0;
+    }
+
+    details summary {
+      min-height: 49px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      list-style: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .chevron {
+      margin-left: auto;
+      color: var(--muted);
+      transition: transform .18s ease;
+    }
+
+    details[open] .chevron {
+      transform: rotate(180deg);
+    }
+
+    .detail-body {
+      padding: 0 14px 13px;
+    }
+
+    .detail-row {
+      padding: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(190,215,255,.1);
+      font-size: 12px;
+    }
+
+    .detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .detail-row span {
+      color: var(--muted);
+    }
+
+    .detail-row b {
+      text-align: right;
+      font-weight: 650;
+    }
+
+    .component-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .component {
+      padding: 9px 10px;
+      display: flex;
+      justify-content: space-between;
+      border: 1px solid rgba(190,215,255,.12);
+      border-radius: 12px;
+      background: rgba(4, 10, 19, .34);
+      font-size: 12px;
+    }
+
+    .component span:last-child {
+      color: var(--amber);
+    }
+
+    dialog {
+      width: min(490px, 100vw);
+      max-width: 100vw;
+      max-height: 88dvh;
+      margin: auto 0 0;
+      padding: 0;
+      overflow: auto;
+      border: 1px solid rgba(190,215,255,.2);
+      border-radius: 24px 24px 0 0;
+      color: var(--text);
+      background: rgba(12, 19, 31, .88);
+      box-shadow: 0 -16px 70px rgba(0,0,0,.45);
+    }
+
+    dialog::backdrop {
+      background: rgba(1, 4, 10, .68);
+    }
+
+    .dialog-header {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(190,215,255,.13);
+      background: rgba(12,19,31,.78);
+    }
+
+    .dialog-header h2 {
+      flex: 1;
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .settings-content {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .settings-group {
+      padding: 13px;
+    }
+
+    .settings-group h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+    }
+
+    .settings-actions {
+      position: sticky;
+      bottom: 0;
+      padding: 8px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: linear-gradient(180deg, transparent, rgba(12,19,31,.96) 20%);
+    }
+
+    .settings-message {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    @media (min-width: 720px) {
+      main {
+        width: min(100%, 1440px);
+      }
+
+      .control-grid {
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      }
+
+      .full-width {
+        grid-column: 1 / -1;
+      }
+
+      dialog {
+        width: min(490px, calc(100vw - 32px));
+        max-height: min(760px, calc(100dvh - 32px));
+        margin: auto;
+        border-radius: 24px;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .topbar {
+        gap: 7px;
+        padding-right: 10px;
+        padding-left: 10px;
+      }
+
+      .brand {
+        gap: 8px;
+      }
+
+      .brand-mark {
+        width: 41px;
+        height: 41px;
+        flex-basis: 41px;
+      }
+
+      .brand-copy h1 {
+        font-size: 14px;
+      }
+
+      .connection {
+        padding: 6px 8px;
+        font-size: 10px;
+      }
+
+      main {
+        padding-right: 10px;
+        padding-left: 10px;
+      }
+
+      .glass-card {
+        padding: 13px;
+        border-radius: 19px;
+      }
+
+      details.glass-card {
+        padding: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="rotate-prompt" id="rotatePrompt">
+    <div>
+      <div class="rotate-icon" aria-hidden="true">⟳</div>
+      <h2>Putar HP ke posisi landscape</h2>
+      <p>Quantum Control dirancang untuk digunakan menyamping, seperti panel kendali.</p>
+      <button class="btn primary" id="landscapeButton" type="button">Coba buka landscape</button>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-label="Logo Q">
+        <svg viewBox="0 0 80 80" role="img" aria-label="Q">
+          <defs>
+            <linearGradient id="qRing" x1="15" y1="8" x2="65" y2="72" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#f5fbff"/>
+              <stop offset=".42" stop-color="#9dbdff"/>
+              <stop offset="1" stop-color="#4879ff"/>
+            </linearGradient>
+            <linearGradient id="qOrbit" x1="5" y1="60" x2="75" y2="20" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#65f4ff"/>
+              <stop offset=".55" stop-color="#16bdf7"/>
+              <stop offset="1" stop-color="#617cff"/>
+            </linearGradient>
+            <filter id="qGlow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="2.4" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          <circle cx="36" cy="36" r="23" fill="none" stroke="url(#qRing)" stroke-width="8"/>
+          <path d="M49 51 66 68" fill="none" stroke="url(#qRing)" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="39" cy="37" rx="34" ry="13" transform="rotate(-28 39 37)"
+                   fill="none" stroke="url(#qOrbit)" stroke-width="2.7" filter="url(#qGlow)"/>
+          <circle cx="67" cy="21" r="4.2" fill="#82f5ff" filter="url(#qGlow)"/>
+          <path d="M39 1 41.5 8 48 10.5 41.5 13 39 20 36.5 13 30 10.5 36.5 8 39 1Z"
+                fill="#68baff" opacity=".85"/>
+        </svg>
+      </div>
+
+      <div class="brand-copy">
+        <h1>Quantum Control</h1>
+        <small>Panel ESP32</small>
+      </div>
+    </div>
+
+    <div class="quick-telemetry" aria-label="Telemetri singkat">
+      <span class="quick-chip">RTC <b id="quickTime">--:--:--</b></span>
+      <span class="quick-chip">Ambient <b id="quickAmbient">-- °C</b></span>
+      <span class="quick-chip">Objek <b id="quickObject">-- °C</b></span>
+    </div>
+    <span class="connection offline" id="connectionStatus">Menghubungkan</span>
+
+    <button class="icon-button" id="statusButton" aria-label="Status robot" title="Status robot">ℹ</button>
+
+    <button class="icon-button" id="reconnectButton" aria-label="Coba sambungkan lagi" title="Coba sambungkan lagi">↻</button>
+
+    <button class="icon-button" id="settingsButton" aria-label="Pengaturan" title="Pengaturan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="m19 13.5 1.4 1.1-1.5 2.6-1.7-.7a8 8 0 0 1-1.6.9l-.3 1.8h-3l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.7-1.5-2.6 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.5-2.6 1.7.7a8 8 0 0 1 1.6-.9l.3-1.8h3l.3 1.8a8 8 0 0 1 1.6.9l1.7-.7 1.5 2.6-1.4 1.1a7 7 0 0 1 0 1.8z"/>
+      </svg>
+    </button>
+  </header>
+
+  <main>
+    <div class="control-grid">
+      <section class="glass-card">
+        <h2 class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v18M3 12h18"/>
+            <path d="m8 7 4-4 4 4m-8 10 4 4 4-4"/>
+          </svg>
+          Gerak
+        </h2>
+
+        <div class="motion-state" id="motionState">
+          <span id="motionLabel">BERHENTI</span>
+        </div>
+
+        <div class="pad" id="directionPad">
+          <span></span>
+          <button class="move-button" aria-label="Maju" data-direction="FORWARD"><i>▲</i>MAJU</button>
+          <span></span>
+
+          <button class="move-button" aria-label="Kiri" data-direction="LEFT"><i>◀</i>KIRI</button>
+          <button class="move-button stop-button" aria-label="Berhenti" data-direction="STOP"><i>■</i>STOP</button>
+          <button class="move-button" aria-label="Kanan" data-direction="RIGHT"><i>▶</i>KANAN</button>
+
+          <span></span>
+          <button class="move-button" aria-label="Mundur" data-direction="BACKWARD"><i>▼</i>MUNDUR</button>
+          <span></span>
+        </div>
+
+        <div class="slider-block">
+          <div class="slider-label">
+            <span>Kecepatan motor</span>
+            <span class="speed-value"><input class="number-input" type="number" id="motorSpeedNumber" min="1" max="255" value="150" aria-label="PWM kecepatan motor"> / <output id="motorSpeedOutput">255</output></span>
+          </div>
+          <input type="range" id="motorSpeed" min="1" max="255" value="150">
+        </div>
+      </section>
+
+      <section class="glass-card">
+        <h2 class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 20h14M7 20v-5l4-4 4 2 3-3"/>
+            <circle cx="18" cy="8" r="2"/>
+          </svg>
+          Lengan dan capit
+        </h2>
+        <div class="servo-controls">
+          <div class="servo-row">
+            <div><strong>Posisi lengan</strong><div class="small-note">NAIK / TURUN · 0–180° · langkah 5°</div></div>
+            <div class="servo-buttons">
+              <button class="btn" id="armUp" aria-label="Naikkan lengan">NAIK</button>
+              <output class="servo-value" id="armOutput">90°</output>
+              <button class="btn" id="armDown" aria-label="Turunkan lengan">TURUN</button>
+            </div>
+          </div>
+          <div class="servo-row">
+            <div><strong>Bukaan capit</strong></div>
+            <output class="servo-value" id="gripperOutput">0%</output>
+          </div>
+          <div class="button-row claw-buttons">
+            <button class="btn" id="openGripper">Buka capit</button>
+            <button class="btn primary" id="closeGripper">Tutup capit</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <dialog id="statusDialog">
+    <div class="dialog-header"><h2>Status robot</h2><button class="icon-button" id="closeStatus" aria-label="Tutup status">×</button></div>
+    <div class="settings-content status-content">
+      <section class="glass-card"><div class="status-section-head"><h3>Telemetri</h3><button class="btn primary" id="syncRtc">Sync</button></div><div class="status-grid">
+        <div class="status-item"><small>RTC · WIB</small><b id="rtcTime">Menunggu RTC</b></div>
+        <div class="status-item"><small>Ambient MLX90614</small><b id="ambientTemperature">Menunggu data</b></div>
+        <div class="status-item"><small>Suhu objek MLX90614</small><b id="objectTemperature">Menunggu data</b></div>
+        <div class="status-item"><small>Sinkronisasi NTP</small><b id="ntpStatus">Belum diminta</b></div>
+      </div></section>
+      <section class="glass-card"><h3>Log data microSD</h3><div class="status-grid">
+        <div class="status-item"><small>File aktif</small><b id="logFileName">Mencari file...</b></div>
+        <div class="status-item"><small>Kartu microSD</small><b id="sdCardStatus">Memeriksa...</b></div>
+        <div class="status-item"><small>Status penyimpanan</small><b id="logStatus">Memeriksa SD...</b></div>
+        <div class="status-item"><small>Baris data tersimpan</small><b id="sdRowsStatus">0</b></div>
+        <div class="status-item"><small>Sampel terakhir</small><b id="lastLogTime">Menunggu data</b></div>
+        <div class="status-item"><small>Status restart</small><b id="restartNotice">Memeriksa ESP32...</b></div>
+      </div></section>
+      <section class="glass-card"><h3>Inisialisasi komponen</h3><div class="status-grid">
+        <div class="status-item"><small>Wi-Fi</small><b id="wifiComponent">Menunggu</b></div>
+        <div class="status-item"><small>Driver PWM motor</small><b id="motorComponent">Menunggu</b></div>
+        <div class="status-item"><small>Servo 180°</small><b id="servoComponent">Menunggu</b></div>
+        <div class="status-item"><small>MLX90614</small><b id="mlxComponent">Menunggu</b></div>
+        <div class="status-item"><small>RTC DS3231</small><b id="rtcComponent">Menunggu</b></div>
+        <div class="status-item"><small>microSD</small><b id="sdComponent">Menunggu</b></div>
+      </div></section>
+      <section class="glass-card"><h3>Jaringan</h3><div class="status-grid">
+        <div class="status-item"><small>Sinyal Wi-Fi</small><b id="wifiSignal">—</b></div>
+        <div class="status-item"><small>Respons perintah</small><b id="latency">—</b></div>
+      </div></section>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <div class="dialog-header">
+      <h2>Pengaturan</h2>
+      <button class="icon-button" id="closeSettings" aria-label="Tutup pengaturan">×</button>
+    </div>
+
+    <div class="settings-content">
+      <section class="glass-card settings-group">
+        <h3>Motor</h3>
+        <div class="slider-block">
+          <div class="slider-label">
+            <span>Batas PWM website</span>
+            <input class="number-input" type="number" id="maxPwmNumber" min="1" max="255" value="255" aria-label="PWM maksimum">
+          </div>
+          <input type="range" id="maxPwm" min="1" max="255" value="255">
+          <p class="small-note">Batas maksimum Arduino dibaca otomatis saat ESP32 tersambung. Pengaturan ini hanya membatasi nilai slider website.</p>
+        </div>
+      </section>
+
+      <section class="glass-card settings-group">
+        <h3>Koneksi ESP32</h3>
+        <div class="slider-block">
+          <label class="slider-label" for="robotAddress">
+            <span>Alamat ESP32</span>
+          </label>
+          <input id="robotAddress" type="url" inputmode="url" placeholder="Contoh: http://192.168.1.25">
+          <p class="small-note">Isi alamat IP yang dicetak di Serial Monitor setelah ESP32 tersambung ke hotspot HP atau Wi-Fi yang sama dengan laptop.</p>
+        </div>
+      </section>
+
+      <div class="settings-message" id="settingsMessage"></div>
+
+      <div class="settings-actions">
+        <button class="btn" id="resetSettings">Bawaan</button>
+        <button class="btn primary" id="applySettings">Terapkan</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+
+    const defaultSettings = { pwmMax: 255 };
+
+    function defaultEsp32Address() {
+      if (location.protocol === "file:" || location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
+      return location.origin;
+    }
+
+    function loadEsp32Address() {
+      const fromUrl = new URLSearchParams(location.search).get("esp32");
+      if (fromUrl) return fromUrl.replace(/\/$/, "");
+      try {
+        const saved = localStorage.getItem("robotEsp32Address") || "";
+        if (location.protocol === "https:" && saved === location.origin) {
+          localStorage.removeItem("robotEsp32Address");
+          return "";
+        }
+        return saved || defaultEsp32Address();
+      } catch {
+        return defaultEsp32Address();
+      }
+    }
+
+    let settings = { ...defaultSettings };
+    let robotBaseUrl = loadEsp32Address();
+    let connected = false;
+    let currentMotion = "STOP";
+    let motorSpeed = 150;
+    let driveHeartbeat = null;
+    let speedDebounce = null;
+    let speedTouched = false;
+    let statusRequestInFlight = false;
+    let firmwarePwmMax = 255;
+    let driveCycleToken = 0;
+    let previouslySeenLogFile = "";
+    let previouslySeenUptime = null;
+    let rtcDisplayEpoch = null;
+
+    const directionNames = {
+      STOP: "BERHENTI",
+      FORWARD: "MAJU",
+      BACKWARD: "MUNDUR",
+      LEFT: "KIRI",
+      RIGHT: "KANAN"
+    };
+
+    const directionCommands = {
+      FORWARD: "W",
+      BACKWARD: "S",
+      LEFT: "A",
+      RIGHT: "D"
+    };
+
+    async function api(path) {
+      if (!robotBaseUrl) throw new Error("Isi alamat IP ESP32 dari Serial Monitor di pengaturan.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1600);
+      let response;
+      try {
+        response = await fetch(robotBaseUrl + path, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("Respons ESP32 bukan JSON");
+      }
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function setOffline() {
+      connected = false;
+      driveCycleToken++;
+      if (driveHeartbeat) clearTimeout(driveHeartbeat);
+      driveHeartbeat = null;
+      currentMotion = "STOP";
+      renderMotion();
+      renderStatus();
+      rtcDisplayEpoch = null;
+      $("#rtcTime").textContent = "ESP32 offline";
+      $("#wifiSignal").textContent = "—";
+      $("#latency").textContent = "—";
+      $("#logStatus").textContent = "ESP32 offline";
+      $("#sdCardStatus").textContent = "ESP32 offline";
+      $("#sdRowsStatus").textContent = "—";
+      $("#restartNotice").textContent = "Menunggu ESP32 tersambung kembali";
+      $("#quickTime").textContent = "--:--:--";
+      $("#quickAmbient").textContent = "-- °C";
+      $("#quickObject").textContent = "-- °C";
+      for (const id of ["wifiComponent", "motorComponent", "servoComponent", "mlxComponent", "rtcComponent", "sdComponent"]) {
+        setComponent(id, false, "Siap", "Offline");
+      }
+    }
+
+    async function sendCommand(command) {
+      if (!connected) return null;
+      try {
+        const data = await api("/api/cmd?c=" + encodeURIComponent(command));
+        connected = true;
+        renderStatus();
+        return data;
+      } catch (error) {
+        console.warn("Perintah ke ESP32 gagal:", error.message);
+        setOffline();
+        return null;
+      }
+    }
+
+    async function refreshStatus() {
+      if (statusRequestInFlight) return;
+      statusRequestInFlight = true;
+      const started = performance.now();
+      try {
+        const data = await api("/api/status");
+        connected = true;
+        if (Number.isFinite(data.pwmMax) && data.pwmMax > 0) {
+          firmwarePwmMax = Math.max(1, Math.min(255, data.pwmMax));
+          settings.pwmMax = Math.min(settings.pwmMax, firmwarePwmMax);
+          $("#maxPwm").max = String(firmwarePwmMax);
+          $("#maxPwmNumber").max = String(firmwarePwmMax);
+        }
+        if (!driveHeartbeat && data.motion && directionNames[data.motion]) currentMotion = data.motion;
+        if (!speedTouched && Number.isFinite(data.pwm)) motorSpeed = data.pwm;
+        updateSpeedControl();
+        renderMotion();
+        renderStatus();
+        $("#wifiSignal").textContent = data.wifiConnected ? `${data.wifiRSSI} dBm` : "Terputus";
+        $("#latency").textContent = `${Math.round(performance.now() - started)} ms`;
+        updateTelemetry(data);
+      } catch {
+        setOffline();
+      } finally {
+        statusRequestInFlight = false;
+      }
+    }
+
+    function updateTelemetry(data) {
+      $("#ambientTemperature").textContent = Number.isFinite(data.ambientC)
+        ? `${data.ambientC.toFixed(2)} °C`
+        : (data.mlxReady ? "Menunggu pembacaan" : "MLX90614 offline");
+      $("#objectTemperature").textContent = Number.isFinite(data.objectC)
+        ? `${data.objectC.toFixed(2)} °C`
+        : (data.mlxReady ? "Menunggu pembacaan" : "MLX90614 offline");
+
+      const timeText = data.sampleTime || "";
+      const rtcText = data.rtcTime || "";
+      const rtcParts = rtcText.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+      if (data.rtcReady && rtcParts) {
+        rtcDisplayEpoch = Date.UTC(
+          Number(rtcParts[1]), Number(rtcParts[2]) - 1, Number(rtcParts[3]),
+          Number(rtcParts[4]), Number(rtcParts[5]), Number(rtcParts[6])
+        );
+        renderRtcClock();
+      } else {
+        rtcDisplayEpoch = null;
+        $("#rtcTime").textContent = "DS3231 belum siap";
+        $("#quickTime").textContent = "--:--:--";
+      }
+      $("#quickAmbient").textContent = Number.isFinite(data.ambientC) ? `${data.ambientC.toFixed(1)} °C` : "-- °C";
+      $("#quickObject").textContent = Number.isFinite(data.objectC) ? `${data.objectC.toFixed(1)} °C` : "-- °C";
+      $("#ntpStatus").textContent = data.ntpSyncPending ? "Sedang menyinkronkan…" : (data.rtcReady ? "RTC siap" : "RTC tidak siap");
+      $("#armOutput").textContent = `${data.armAngle ?? 90}°`;
+      $("#gripperOutput").textContent = `${data.gripPercent ?? 0}%`;
+      setComponent("wifiComponent", data.wifiConnected, "Terhubung", "Terputus");
+      setComponent("motorComponent", data.motorPwmReady, "PWM siap", "PWM gagal");
+      setComponent("servoComponent", data.servoReady, "Siap · GPIO 16/17", "PWM gagal");
+      setComponent("mlxComponent", data.mlxReady, "Terhubung", "Tidak terdeteksi");
+      setComponent("rtcComponent", data.rtcReady, "Terhubung", "Tidak terdeteksi");
+      setComponent("sdComponent", data.sdReady, "Terpasang", "Tidak terdeteksi");
+      $("#sdCardStatus").textContent = data.sdReady ? "Terdeteksi" : "Tidak terdeteksi";
+      $("#sdRowsStatus").textContent = String(data.sdRowsWritten ?? 0);
+      $("#lastLogTime").textContent = timeText || "Menunggu sampel";
+      $("#logFileName").textContent = data.logFile || "File CSV belum tersedia";
+
+      if (!data.sdReady) {
+        $("#logStatus").textContent = "microSD tidak terdeteksi";
+      } else if (Number(data.sdWriteErrors) > 0) {
+        $("#logStatus").textContent = `Gagal tulis CSV · ${data.sdWriteErrors} error`;
+      } else if (!data.logFile) {
+        $("#logStatus").textContent = "File CSV gagal dibuat · cek Serial Monitor";
+      } else if (data.logReady) {
+        $("#logStatus").textContent = `Merekam · ${data.sdRowsWritten ?? 0} baris`;
+      } else if (!data.rtcReady) {
+        $("#logStatus").textContent = "DS3231 tidak siap";
+      } else if (!data.mlxReady) {
+        $("#logStatus").textContent = "MLX90614 tidak siap";
+      } else {
+        $("#logStatus").textContent = "Menyiapkan log...";
+      }
+
+      let previousFile = previouslySeenLogFile;
+      let previousUptime = previouslySeenUptime;
+      try {
+        previousFile = previousFile || localStorage.getItem("quantumLogFile") || "";
+        const savedUptime = localStorage.getItem("quantumEsp32Uptime");
+        if (previousUptime === null && savedUptime !== null) previousUptime = Number(savedUptime);
+      } catch {}
+
+      const restarted = Number.isFinite(previousUptime) &&
+        Number.isFinite(data.uptimeMs) && data.uptimeMs < previousUptime;
+      if (restarted && data.logFile) {
+        $("#restartNotice").textContent = `Restart terdeteksi · log baru ${data.logFile}`;
+      } else if (previousFile && data.logFile && previousFile !== data.logFile) {
+        $("#restartNotice").textContent = `File log berganti: ${previousFile} → ${data.logFile}`;
+      } else if (data.logReady) {
+        $("#restartNotice").textContent = "ESP32 berjalan · file baru dibuat saat restart";
+      } else {
+        $("#restartNotice").textContent = "Status log belum tersedia";
+      }
+
+      previouslySeenLogFile = data.logFile || previousFile;
+      previouslySeenUptime = Number.isFinite(data.uptimeMs) ? data.uptimeMs : previousUptime;
+      try {
+        if (data.logFile) localStorage.setItem("quantumLogFile", data.logFile);
+        if (Number.isFinite(data.uptimeMs)) localStorage.setItem("quantumEsp32Uptime", String(data.uptimeMs));
+      } catch {}
+    }
+
+    function setComponent(id, ready, yes, no) {
+      const el = $("#" + id);
+      el.textContent = ready ? yes : no;
+      el.classList.toggle("ready", Boolean(ready));
+      el.classList.toggle("not-ready", !ready);
+    }
+
+    function renderRtcClock() {
+      if (rtcDisplayEpoch === null) return;
+      const date = new Date(rtcDisplayEpoch);
+      const pad = (value) => String(value).padStart(2, "0");
+      const text = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+      $("#rtcTime").textContent = text;
+      $("#quickTime").textContent = text.slice(-8);
+    }
+
+    function setMotion(direction) {
+      if (!connected) return;
+      if (direction === "STOP") {
+        stopMotion();
+        return;
+      }
+      if (driveHeartbeat) clearTimeout(driveHeartbeat);
+      const token = ++driveCycleToken;
+      currentMotion = direction;
+      renderMotion();
+
+      const pulse = async () => {
+        if (token !== driveCycleToken || !connected) return;
+        await sendCommand(directionCommands[direction]);
+        if (token === driveCycleToken && connected) {
+          driveHeartbeat = setTimeout(pulse, 100);
+        }
+      };
+
+      pulse();
+    }
+
+    function stopMotion() {
+      driveCycleToken++;
+      if (driveHeartbeat) clearTimeout(driveHeartbeat);
+      driveHeartbeat = null;
+      currentMotion = "STOP";
+      renderMotion();
+      if (connected) sendCommand("X");
+    }
+
+    function renderMotion() {
+      $("#motionLabel").textContent = directionNames[currentMotion] || "BERHENTI";
+      $("#motionState").classList.toggle("moving", currentMotion !== "STOP");
+    }
+
+    function updateSpeedControl() {
+      const slider = $("#motorSpeed");
+      slider.min = "1";
+      slider.max = String(settings.pwmMax);
+      $("#motorSpeedNumber").min = "1";
+      $("#motorSpeedNumber").max = String(settings.pwmMax);
+      motorSpeed = Math.max(1, Math.min(motorSpeed, settings.pwmMax));
+      slider.value = String(motorSpeed);
+      $("#motorSpeedNumber").value = String(motorSpeed);
+      $("#motorSpeedOutput").textContent = settings.pwmMax;
+    }
+
+    function updateSettingsOutputs() {
+      for (const id of ["maxPwm"]) {
+        $("#" + id + "Number").value = $("#" + id).value;
+      }
+    }
+
+    function bindSettingNumber(rangeId, min, max) {
+      const range = $("#" + rangeId);
+      const number = $("#" + rangeId + "Number");
+      range.addEventListener("input", updateSettingsOutputs);
+      number.addEventListener("input", () => {
+        if (number.value === "") return;
+        const value = Math.max(min, Math.min(Number(range.max) || max, Number(number.value)));
+        range.value = String(value);
+        number.value = range.value;
+      });
+    }
+
+    function renderStatus() {
+      const status = $("#connectionStatus");
+      status.textContent = connected ? "Online" : "Offline";
+      status.classList.toggle("online", connected);
+      status.classList.toggle("offline", !connected);
+    }
+
+    function changeMotorSpeed(value) {
+      speedTouched = true;
+      motorSpeed = Math.max(1, Math.min(settings.pwmMax, Number(value)));
+      updateSpeedControl();
+      clearTimeout(speedDebounce);
+      speedDebounce = setTimeout(() => {
+        if (connected) sendCommand("V" + motorSpeed);
+      }, 120);
+    }
+
+    $("#motorSpeed").addEventListener("input", (event) => changeMotorSpeed(event.target.value));
+    $("#motorSpeedNumber").addEventListener("input", (event) => {
+      if (event.target.value !== "") changeMotorSpeed(event.target.value);
+    });
+
+    $("#armUp").addEventListener("click", () => sendCommand("U+"));
+    $("#armDown").addEventListener("click", () => sendCommand("U-"));
+
+    document.querySelectorAll(".move-button").forEach((button) => {
+      const direction = button.dataset.direction;
+
+      button.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        button.classList.add("pressed");
+        setMotion(direction);
+      });
+
+      const release = () => {
+        const wasPressed = button.classList.contains("pressed");
+        button.classList.remove("pressed");
+        if (wasPressed && direction !== "STOP") stopMotion();
+      };
+
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("lostpointercapture", release);
+    });
+
+    document.addEventListener("contextmenu", (event) => {
+      if (event.target.closest("button")) event.preventDefault();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopMotion();
+    });
+    window.addEventListener("blur", stopMotion);
+    window.addEventListener("pagehide", stopMotion);
+
+    $("#openGripper").addEventListener("click", () => {
+      sendCommand("G0");
+    });
+
+    $("#closeGripper").addEventListener("click", () => {
+      sendCommand("G100");
+    });
+
+    $("#settingsButton").addEventListener("click", () => {
+      $("#maxPwm").value = String(settings.pwmMax);
+      $("#robotAddress").value = robotBaseUrl;
+      updateSettingsOutputs();
+      $("#settingsMessage").textContent = "";
+      $("#settingsDialog").showModal();
+    });
+
+    $("#closeSettings").addEventListener("click", () => $("#settingsDialog").close());
+    bindSettingNumber("maxPwm", 1, firmwarePwmMax);
+
+    $("#resetSettings").addEventListener("click", () => {
+      $("#maxPwm").value = String(defaultSettings.pwmMax);
+      updateSettingsOutputs();
+      $("#settingsMessage").textContent = "";
+    });
+
+    $("#applySettings").addEventListener("click", async () => {
+      if (currentMotion !== "STOP") {
+        $("#settingsMessage").textContent = "Berhentikan robot sebelum menerapkan pengaturan.";
+        return;
+      }
+
+      const next = {
+        pwmMax: Number($("#maxPwm").value)
+      };
+      if (next.pwmMax < 1 || next.pwmMax > firmwarePwmMax) {
+        $("#settingsMessage").textContent = `PWM maksimum harus 1–${firmwarePwmMax}, sesuai batas Arduino.`;
+        return;
+      }
+      const enteredAddress = $("#robotAddress").value.trim();
+      try {
+        if (!enteredAddress) throw new Error();
+        const parsed = new URL(enteredAddress);
+        if (parsed.protocol !== "http:") throw new Error();
+        robotBaseUrl = parsed.origin;
+      } catch {
+        $("#settingsMessage").textContent = "Isi alamat IP dari Serial Monitor, diawali http:// (contoh http://192.168.1.25).";
+        return;
+      }
+
+      settings = next;
+      const pwmWasChangedManually = speedTouched;
+      updateSpeedControl();
+      try { localStorage.setItem("robotEsp32Address", robotBaseUrl); } catch {}
+      $("#settingsMessage").textContent = "Pengaturan diterapkan. Mengecek ESP32…";
+      await refreshStatus();
+      $("#settingsMessage").textContent = connected ? "Pengaturan diterapkan; ESP32 tersambung." : "Pengaturan tersimpan, tetapi ESP32 belum tersambung.";
+      if (connected && pwmWasChangedManually) sendCommand("V" + motorSpeed);
+    });
+
+    $("#reconnectButton").addEventListener("click", refreshStatus);
+    $("#statusButton").addEventListener("click", () => $("#statusDialog").showModal());
+    $("#closeStatus").addEventListener("click", () => $("#statusDialog").close());
+    $("#syncRtc").addEventListener("click", async () => {
+      const result = await sendCommand("T");
+      if (result) $("#ntpStatus").textContent = "Permintaan sync dikirim…";
+    });
+
+    $("#landscapeButton").addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape");
+        }
+      } catch (error) {
+        console.info("Putar HP secara manual ke landscape.", error);
+      }
+    });
+
+    renderStatus();
+    renderMotion();
+    updateSpeedControl();
+    $("#robotAddress").value = robotBaseUrl;
+    $("#ambientTemperature").textContent = "Menunggu data";
+    $("#objectTemperature").textContent = "Menunggu data";
+    refreshStatus();
+    setInterval(() => {
+      if (!document.hidden) refreshStatus();
+    }, 3000);
+    setInterval(() => {
+      if (rtcDisplayEpoch !== null) {
+        rtcDisplayEpoch += 1000;
+        renderRtcClock();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
